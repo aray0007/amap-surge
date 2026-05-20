@@ -1,38 +1,50 @@
 {
-  "id": "iios_ga_checkin",
-  "name": "iios.ga 自动签到",
+  "id": "aray.iios",
+  "name": "aray iios scripts",
   "author": "Minis",
-  "repo": "https://www.iios.ga/",
+  "repo": "https://github.com/aray0007/surge",
   "icons": [
     "https://www.iios.ga/static/media/logo.58675ef728e99b3c9ed2.png",
     "https://www.iios.ga/static/media/logo.58675ef728e99b3c9ed2.png"
   ],
-  "keys": [
-    "iios_token",
-    "iios_email",
-    "iios_password"
-  ],
-  "settings": [
+  "apps": [
     {
-      "id": "iios_token",
-      "name": "iios token",
-      "val": "",
-      "type": "text",
-      "desc": "网页登录后从 localStorage.token 复制。脚本优先使用此项。"
-    },
-    {
-      "id": "iios_email",
-      "name": "邮箱（预留）",
-      "val": "",
-      "type": "text",
-      "desc": "预留字段：iios.ga 登录邮箱。当前登录接口有加密，优先使用 token。"
-    },
-    {
-      "id": "iios_password",
-      "name": "密码（预留）",
-      "val": "",
-      "type": "password",
-      "desc": "预留字段：iios.ga 登录密码。当前登录接口有加密，优先使用 token。"
+      "id": "iios_ga_checkin",
+      "name": "iios.ga 自动签到",
+      "author": "Minis",
+      "repo": "https://github.com/aray0007/surge",
+      "icons": [
+        "https://www.iios.ga/static/media/logo.58675ef728e99b3c9ed2.png",
+        "https://www.iios.ga/static/media/logo.58675ef728e99b3c9ed2.png"
+      ],
+      "keys": [
+        "iios_token",
+        "iios_email",
+        "iios_password"
+      ],
+      "settings": [
+        {
+          "id": "iios_token",
+          "name": "iios token",
+          "val": "",
+          "type": "text",
+          "desc": "网页登录后从 localStorage.token 复制。脚本优先使用此项。"
+        },
+        {
+          "id": "iios_email",
+          "name": "邮箱（预留）",
+          "val": "",
+          "type": "text",
+          "desc": "预留字段：iios.ga 登录邮箱。当前登录接口有加密，优先使用 token。"
+        },
+        {
+          "id": "iios_password",
+          "name": "密码（预留）",
+          "val": "",
+          "type": "password",
+          "desc": "预留字段：iios.ga 登录密码。当前登录接口有加密，优先使用 token。"
+        }
+      ]
     }
   ]
 }
