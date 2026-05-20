@@ -3,22 +3,24 @@ MiraiEmby Surge 自动签到脚本
 
 Surge Module 示例：
 [Script]
-MiraiEmby 自动签到 = type=cron,cronexp="10 9 * * *",wake-system=1,timeout=60,script-path=https://example.com/miraiemby_checkin.sg.js,argument=username=你的用户名&password=你的密码
+MiraiEmby 自动签到 = type=cron,cronexp="10 9 * * *",wake-system=1,timeout=60,script-path=https://example.com/miraiemby_checkin.sg.js,argument=username=你的用户名&password=你的密码&checkinPath=/api/client/checkin
 
 可选参数：
   baseUrl=https://www.miraiemby.com
-  checkinPath=/api/user/checkin
+  checkinPath=/api/client/checkin
 
 说明：
   - 自动 POST /api/auth/login 获取 token
+  - 真实签到接口：POST /api/client/checkin
   - token / refresh_token 会持久化到 $persistentStore
-  - 未确认真实签到接口时，会尝试一组常见路径；若都 404，请抓包后设置 checkinPath
+  - HTTP 409 且提示“今天已经签到过了”会按成功处理
 */
 
 const SCRIPT_NAME = 'MiraiEmby';
 const DEFAULT_BASE_URL = 'https://www.miraiemby.com';
 
 const DEFAULT_CANDIDATES = [
+  '/api/client/checkin',
   '/api/checkin',
   '/api/check-in',
   '/api/signin',
@@ -204,6 +206,9 @@ function extractMessage(res) {
     if (res.status >= 200 && res.status < 300) {
       notify('MiraiEmby 签到成功', `HTTP ${res.status}`, msg);
       console.log(`[${SCRIPT_NAME}] 签到成功：${msg}`);
+    } else if (res.status === 409 && /今天已经签到过了/.test(msg)) {
+      notify('MiraiEmby 已签到', `HTTP ${res.status}`, msg);
+      console.log(`[${SCRIPT_NAME}] 已签到：${msg}`);
     } else {
       const hint = res.status === 404 && !CHECKIN_PATH
         ? '默认候选接口均不可用，请抓包获取签到接口后设置 checkinPath。'
