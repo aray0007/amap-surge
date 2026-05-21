@@ -1,0 +1,55 @@
+#!name=Emby 专用分流模块
+#!desc=将常用 Emby 域名及相关元数据、字幕服务强制分流至名为 'EMBY' 的策略组。
+#!category=分流规则
+
+[Rule]
+# --- 自定义 Emby 服务器域名 (强制走 EMBY 策略组) ---
+DOMAIN-SUFFIX,meowfly.de,EMBY,no-resolve
+DOMAIN-SUFFIX,vban.xyz,EMBY,no-resolve
+DOMAIN-SUFFIX,wenjian.de,EMBY,no-resolve
+DOMAIN-SUFFIX,shrekmedia.org,EMBY,no-resolve
+DOMAIN-SUFFIX,feiniu.lol,EMBY,no-resolve
+DOMAIN-SUFFIX,emby.my,EMBY,no-resolve
+DOMAIN-SUFFIX,cn2gias.uk,EMBY,no-resolve
+DOMAIN-SUFFIX,liminalnet.com,EMBY,no-resolve
+DOMAIN-SUFFIX,007.us.kg,EMBY,no-resolve
+DOMAIN-SUFFIX,gousen.cc.cd,EMBY,no-resolve
+DOMAIN-SUFFIX,faemby.vip,EMBY,no-resolve
+DOMAIN-SUFFIX,kingemby.xyz,EMBY,no-resolve
+DOMAIN-SUFFIX,miraiemby.com,EMBY,no-resolve
+DOMAIN-SUFFIX,dpdns.org,EMBY,no-resolve
+DOMAIN-SUFFIX,heisi.org,EMBY,no-resolve
+DOMAIN-SUFFIX,notfounda.shop,EMBY,no-resolve
+DOMAIN-SUFFIX,zhezhi.art,EMBY,no-resolve
+DOMAIN-SUFFIX,smlwmv.com,EMBY,no-resolve
+
+# --- 特殊直连 ---
+DOMAIN-SUFFIX,l0323.top,DIRECT
+DOMAIN-SUFFIX,ccwu.cc,DIRECT
+DOMAIN-SUFFIX,139.com,DIRECT
+DOMAIN-KEYWORD,yusen,DIRECT
+DOMAIN-SUFFIX,cmecloud.cn,DIRECT
+
+# --- 通用元数据与字幕服务 ---
+DOMAIN-SUFFIX,emby.media,EMBY,no-resolve
+DOMAIN-SUFFIX,emby.com,EMBY,no-resolve
+DOMAIN-SUFFIX,themoviedb.org,EMBY,no-resolve
+DOMAIN-SUFFIX,thetvdb.com,EMBY,no-resolve
+DOMAIN-SUFFIX,fanart.tv,EMBY,no-resolve
+DOMAIN-SUFFIX,imdb.com,EMBY,no-resolve
+DOMAIN-SUFFIX,tvmaze.com,EMBY,no-resolve
+DOMAIN-SUFFIX,opensubtitles.org,EMBY,no-resolve
+DOMAIN-SUFFIX,subscene.com,EMBY,no-resolve
+DOMAIN-SUFFIX,allocine.fr,EMBY,no-resolve
+DOMAIN-SUFFIX,douban.com,EMBY,no-resolve
+DOMAIN-SUFFIX,omdbapi.com,EMBY,no-resolve
+DOMAIN-SUFFIX,jellyfin.org,EMBY,no-resolve
+DOMAIN-SUFFIX,trakt.tv,EMBY,no-resolve 
+DOMAIN-SUFFIX,anilist.co,EMBY,no-resolve
+DOMAIN-SUFFIX,kitsunekko.net,EMBY,no-resolve
+DOMAIN-SUFFIX,zimuku.cn,EMBY,no-resolve
+DOMAIN-SUFFIX,musicbrainz.org,EMBY,no-resolve
+DOMAIN-SUFFIX,audiodb.com,EMBY,no-resolve
+
+# --- 关键词匹配 ---
+DOMAIN-KEYWORD,emby,EMBY
