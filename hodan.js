@@ -14,10 +14,10 @@ const CFG = {
   base8081: 'https://gha.ghac.cn:8081',
   base8082: 'https://gha.ghac.cn:8082',
   base8805: 'https://gha.ghac.cn:8805',
-  customerCode: 'd5d6115c3e1e43cf9441bfaebcd346c0',
-  xAccessToken: 'eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIzOTczYjJjNzY0YzY0N2U1YTQxNTNlOTM2MzgzODYyZCIsImV4cCI6MTc3OTU4ODgxNiwidXNlcklkIjoiMjAyOTYxNzYzOTU1MDcwMTU2OCIsImlhdCI6MTc3OTUwMjQxNn0.F7iyqkrhx0cS7PzXoS9RL31C6-RvRr-e2yRqW8rdr5o',
+  customerCode: '3784147841324d23b53ffd90afc74c88',
+  xAccessToken: 'eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMGUwMTIzOGI4YzQ0Y2Y2YTg2NmU0ODYyMzZhOTBkNiIsImV4cCI6MTc3OTU4OTI0MCwidXNlcklkIjoiMjAyOTYxNzYzOTU1MDcwMTU2OCIsImlhdCI6MTc3OTUwMjg0MH0.2-vZn5mslNXKaNqU4XBMP7sJ7OYjLPRCE2j0NoTrxGE',
   deviceToken: '418a3bf0bf34c653f76dfaabb70e330edc2228f08e39448de3bf6f7a7f4756a5',
-  cookie: 'HWWAFSESID=69dc3a929bfd889c12; HWWAFSESTIME=1779502412917',
+  cookie: 'HWWAFSESID=c0e77b82df5c3894ed; HWWAFSESTIME=1779502838132; sensorsdata2015jssdkcross=%7B%22distinct_id%22%3A%2219e5284be722eae-0d8c9b5b17ab288-525a3d5b-351348-19e5284be734b71%22%2C%22first_id%22%3A%22%22%2C%22props%22%3A%7B%22%24latest_traffic_source_type%22%3A%22%E7%9B%B4%E6%8E%A5%E6%B5%81%E9%87%8F%22%2C%22%24latest_search_keyword%22%3A%22%E6%9C%AA%E5%8F%96%E5%88%B0%E5%80%BC_%E7%9B%B4%E6%8E%A5%E6%89%93%E5%BC%80%22%2C%22%24latest_referrer%22%3A%22%22%7D%2C%22identities%22%3A%22eyIkaWRlbnRpdHlfY29va2llX2lkIjoiMTllNTI4NGJlNzIyZWFlLTBkOGM5YjViMTdhYjI4OC01MjVhM2Q1Yi0zNTEzNDgtMTllNTI4NGJlNzM0YjcxIn0%3D%22%2C%22history_login_id%22%3A%7B%22name%22%3A%22%22%2C%22value%22%3A%22%22%7D%2C%22%24device_id%22%3A%2219e5284be722eae-0d8c9b5b17ab288-525a3d5b-351348-19e5284be734b71%22%7D; sajssdk_2015_cross_new_user=1',
   version: '4.1.7',
   os: 'ios',
   userAgent: 'GHA-APP-AppStore/4.1.7 (iPhone; iOS 26.5; Scale/3.00)',
@@ -130,9 +130,6 @@ async function doBrowse(item) {
 
 async function runTask(task, items) {
   const logs = [];
-  if (task.type === 'comment_featured') {
-    return { logs: ['评论加精：需官方精选，脚本已跳过'], success: 0, total: 1 };
-  }
   const total = Math.max(1, Number(task.count || 1));
   const pool = items.length ? items : [];
   let success = 0;
