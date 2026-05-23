@@ -12,6 +12,7 @@
 */
 
 const CFG = {
+  base8081: 'https://gha.ghac.cn:8081',
   base8082: 'https://gha.ghac.cn:8082',
   base8805: 'https://gha.ghac.cn:8805',
   customerCode: '8a18774125044bf8a5807a2f386f8613',
@@ -75,9 +76,16 @@ function hasExpired(text) {
 
 async function signIn() {
   const url = `${CFG.base8805}/task/app/api/sign/save`;
-  const body = { customerCode: CFG.customerCode };
-  const r = await fetchJson(url, 'POST', body);
+  const r = await fetchJson(url, 'GET');
   return msgOf(r.json) || r.raw;
+}
+
+async function queryIntegral() {
+  const r = await fetchJson(`${CFG.base8081}/base/app/api/customer/statistics`, 'POST', {
+    customerCode: CFG.customerCode
+  });
+  const data = r.json && r.json.data ? r.json.data : {};
+  return data.memberIntegral || data.integral || data.points || '';
 }
 
 async function queryTaskList() {
@@ -125,11 +133,11 @@ async function doBrowse(item) {
 async function runTask(task, items) {
   const logs = [];
   if (task.type === 'comment_featured') {
-    logs.push('评论加精：当前 HAR 未发现可稳定自动发起的精选评论上报接口，已跳过');
-    return logs;
+    return { logs: ['评论加精：需官方精选，脚本已跳过'], success: 0, total: 1 };
   }
   const total = Math.max(1, Number(task.count || 1));
   const pool = items.length ? items : [];
+  let success = 0;
   for (let i = 0; i < total; i++) {
     const item = pool[i % pool.length];
     if (!item) {
@@ -142,13 +150,14 @@ async function runTask(task, items) {
       if (task.type === 'share') res = await doShare(item);
       if (task.type === 'browse') res = await doBrowse(item);
       logs.push(`${task.name} ${i + 1}/${total}: ${res}`);
+      if (/成功|操作成功|已点赞|已经|重复|上限/.test(res)) success++;
       if (hasExpired(res)) break;
     } catch (e) {
       logs.push(`${task.name} ${i + 1}/${total}: 请求失败 ${String(e)}`);
       break;
     }
   }
-  return logs;
+  return { logs, success, total };
 }
 
 async function main() {
@@ -159,6 +168,13 @@ async function main() {
     logs.push(`签到: ${signMsg}`);
   } catch (e) {
     logs.push(`签到失败: ${String(e)}`);
+  }
+
+  try {
+    const integral = await queryIntegral();
+    if (integral !== '') logs.push(`积分余额: ${integral}`);
+  } catch (e) {
+    logs.push(`积分查询失败: ${String(e)}`);
   }
 
   let taskList = [];
@@ -180,13 +196,15 @@ async function main() {
     if (found) {
       logs.push(`任务：${found.taskName}，积分 ${found.points || t.points}，次数 ${found.triggerFrequency || t.count}`);
     }
-    const lines = await runTask(t, items);
-    logs.push(...lines);
+    const result = await runTask(t, items);
+    logs.push(`${t.name}汇总: ${result.success}/${result.total}`);
+    logs.push(...result.logs);
   }
 
-  const text = logs.join('\n');
-  const subtitle = /失败/.test(text) ? '部分任务失败' : '执行完成';
-  notify('广汽本田签到+任务', subtitle, text.slice(0, 900));
+  const summary = logs.filter(x => /签到:|积分余额|汇总|失败|过期/.test(x)).join('\n');
+  const detail = logs.join('\n');
+  const subtitle = /失败/.test(detail) ? '部分任务失败' : '执行完成';
+  notify('广汽本田签到+任务', subtitle, (summary || detail).slice(0, 1200));
   if (typeof $done === 'function') $done();
 }
 
