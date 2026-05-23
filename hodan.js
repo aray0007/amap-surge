@@ -1,4 +1,3 @@
-
 /*
 广汽本田 QX 合并版脚本
 功能：
@@ -18,10 +17,10 @@ const CFG = {
   customerCode: '6ddf89e8d0344a3e87ff1da6ce137b8e',
   xAccessToken: 'eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIzOTczYjJjNzY0YzY0N2U1YTQxNTNlOTM2MzgzODYyZCIsImV4cCI6MTc3OTU4ODgxNiwidXNlcklkIjoiMjAyOTYxNzYzOTU1MDcwMTU2OCIsImlhdCI6MTc3OTUwMjQxNn0.F7iyqkrhx0cS7PzXoS9RL31C6-RvRr-e2yRqW8rdr5o',
   deviceToken: '418a3bf0bf34c653f76dfaabb70e330edc2228f08e39448de3bf6f7a7f4756a5',
-  cookie: 'sensorsdata2015jssdkcross=%7B%22distinct_id%22%3A%2219e5284be722eae-0d8c9b5b17ab288-525a3d5b-351348-19e5284be734b71%22%2C%22first_id%22%3A%22%22%2C%22props%22%3A%7B%22%24latest_traffic_source_type%22%3A%22%E7%9B%B4%E6%8E%A5%E6%B5%81%E9%87%8F%22%2C%22%24latest_search_keyword%22%3A%22%E6%9C%AA%E5%8F%96%E5%88%B0%E5%80%BC_%E7%9B%B4%E6%8E%A5%E6%89%93%E5%BC%80%22%2C%22%24latest_referrer%22%3A%22%22%7D%2C%22identities%22%3A%22eyIkaWRlbnRpdHlfY29va2llX2lkIjoiMTllNTI4NGJlNzIyZWFlLTBkOGM5YjViMTdhYjI4OC01MjVhM2Q1Yi0zNTEzNDgtMTllNTI4NGJlNzM0YjcxIn0%3D%22%2C%22history_login_id%22%3A%7B%22name%22%3A%22%22%2C%22value%22%3A%22%22%7D%2C%22%24device_id%22%3A%2219e5284be722eae-0d8c9b5b17ab288-525a3d5b-351348-19e5284be734b71%22%7D; sajssdk_2015_cross_new_user=1',
+  cookie: '',
   version: '4.1.7',
   os: 'ios',
-  userAgent: 'GHA-APP-AppStore/2026041707 CFNetwork/3860.600.12 Darwin/25.5.0',
+  userAgent: 'GHA-APP-AppStore/4.1.7 (iPhone; iOS 26.5; Scale/3.00)',
   modelType: '0',
   systemVersion: '26.5'
 };
