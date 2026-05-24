@@ -1,24 +1,26 @@
 /*
 广汽本田 Surge 合并版脚本
-功能：签到 + 积分余额 + 点赞 + 分享 + 浏览
+功能：签到 + 积分余额 + 点赞 + 分享 + 浏览 5 条
 
 Surge 使用示例：
 [Script]
-广汽本田签到任务 = type=cron,cronexp="0 8 * * *",script-path=你的脚本地址,timeout=120
+广汽本田签到任务 = type=cron,cronexp="0 8 * * *",script-path=你的脚本地址,timeout=180
 
 说明：
-- 如果 X-Access-Token 过期，需要重新抓包更新 CFG。
-- 当前登录态来自 2026-05-25 最新 HAR。
+- 当前登录态来自 2026-05-25 00:48 最新 HAR。
+- Token 理论过期时间：2026-05-26 00:48:37。
+- 如果 App 静默刷新登录态，旧 token 可能会被服务端提前废掉。
+- 浏览任务固定浏览 5 条不同内容。
 */
 
 const CFG = {
   base8081: 'https://gha.ghac.cn:8081',
   base8082: 'https://gha.ghac.cn:8082',
   base8805: 'https://gha.ghac.cn:8805',
-  customerCode: 'bf656bf1d3004b65aef9a508b79b93e5',
-  xAccessToken: 'eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJhZjczYzE3Zjc2YWU0YjlmYjI4ZjE4NmY1N2UxZTlkOSIsImV4cCI6MTc3OTcyNTg0MSwidXNlcklkIjoiMjAyOTYxNzYzOTU1MDcwMTU2OCIsImlhdCI6MTc3OTYzOTQ0MX0.VRokFVVqaBqiKvv2GPV5uzzWcN_vUUl1DbZtm0Af8QE',
+  customerCode: '5c1c46829f6a46fba42ce21653d29757',
+  xAccessToken: 'eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJkYzMxN2M4Mjg2NGY0ZWU5YTA0MzM0OGRlNTE5ZGY4MSIsImV4cCI6MTc3OTcyNzcxNywidXNlcklkIjoiMjAyOTYxNzYzOTU1MDcwMTU2OCIsImlhdCI6MTc3OTY0MTMxN30.cuT1YXhfc5QG_dF8GzujVjp9PYlFCb5EQmR0JC2CVuw',
   deviceToken: '418a3bf0bf34c653f76dfaabb70e330edc2228f08e39448de3bf6f7a7f4756a5',
-  cookie: 'HWWAFSESID=5c7f088e963b6099ef; HWWAFSESTIME=1779639438391',
+  cookie: 'HWWAFSESID=958e8121a64b658e454; HWWAFSESTIME=1779641312868',
   version: '4.1.7',
   os: 'ios',
   userAgent: 'GHA-APP-AppStore/4.1.7 (iPhone; iOS 26.5; Scale/3.00)',
@@ -32,14 +34,33 @@ const TASKS = [
   { code: '12', name: '浏览内容', points: 2, count: 5, type: 'browse' }
 ];
 
+const BROWSE_WAIT_MS = 8000;
+
 function notify(title, subtitle, message) {
-  if (typeof $notification !== 'undefined') {
-    $notification.post(title, subtitle || '', message || '');
-  } else if (typeof $notify === 'function') {
-    $notify(title, subtitle || '', message || '');
-  } else {
-    console.log([title, subtitle, message].filter(Boolean).join(' | '));
+  const sub = subtitle || '';
+  const msg = message || '';
+
+  try {
+    if (
+      typeof $notification !== 'undefined' &&
+      $notification &&
+      typeof $notification.post === 'function'
+    ) {
+      $notification.post(title, sub, msg);
+    }
+  } catch (e) {
+    console.log('通知 $notification.post 失败: ' + String(e));
   }
+
+  try {
+    if (typeof $notify === 'function') {
+      $notify(title, sub, msg);
+    }
+  } catch (e) {
+    console.log('通知 $notify 失败: ' + String(e));
+  }
+
+  console.log([title, sub, msg].filter(Boolean).join(' | '));
 }
 
 function headers() {
@@ -49,6 +70,7 @@ function headers() {
     'Connection': 'keep-alive',
     'Content-Type': 'application/json',
     'User-Agent': CFG.userAgent,
+
     'version': CFG.version,
     'os': CFG.os,
     'modelType': CFG.modelType,
@@ -57,26 +79,47 @@ function headers() {
     'customerCode': CFG.customerCode,
     'X-Access-Token': CFG.xAccessToken
   };
-  if (CFG.cookie) h['Cookie'] = CFG.cookie;
+
+  if (CFG.cookie) {
+    h['Cookie'] = CFG.cookie;
+  }
+
   return h;
 }
 
 function httpRequest(url, method = 'GET', body = null) {
   return new Promise((resolve, reject) => {
-    const req = { url, headers: headers() };
+    const req = {
+      url,
+      headers: headers()
+    };
+
     if (body !== null && body !== undefined) {
       req.body = typeof body === 'string' ? body : JSON.stringify(body);
     }
 
     const callback = (error, response, data) => {
-      if (error) return reject(error);
+      if (error) {
+        return reject(error);
+      }
+
       const text = data || '';
       let json = null;
-      try { json = JSON.parse(text); } catch (_) {}
-      resolve({ raw: text, json, response });
+
+      try {
+        json = JSON.parse(text);
+      } catch (_) {}
+
+      resolve({
+        raw: text,
+        json,
+        response
+      });
     };
 
-    if (method.toUpperCase() === 'GET') {
+    const m = String(method || 'GET').toUpperCase();
+
+    if (m === 'GET') {
       $httpClient.get(req, callback);
     } else {
       $httpClient.post(req, callback);
@@ -86,99 +129,234 @@ function httpRequest(url, method = 'GET', body = null) {
 
 function msgOf(v) {
   if (!v) return '';
-  return v.message || v.msg || v.errorMsg || JSON.stringify(v).slice(0, 200);
+  return v.message || v.msg || v.errorMsg || v.errMsg || JSON.stringify(v).slice(0, 300);
 }
 
 function hasExpired(text) {
-  return /token|登录|权限|未授权|unauthorized|invalid/i.test(text || '');
+  return /token|登录|权限|未授权|unauthorized|invalid|过期|失效/i.test(text || '');
+}
+
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function uniqById(arr) {
+  const seen = new Set();
+
+  return (arr || []).filter(x => {
+    if (!x) return false;
+
+    const id = x.id || x.contentId || x.articleId || x.innerId;
+
+    if (id === undefined || id === null || id === '') {
+      return false;
+    }
+
+    const sid = String(id);
+
+    if (seen.has(sid)) {
+      return false;
+    }
+
+    seen.add(sid);
+
+    if (!x.id) {
+      x.id = sid;
+    }
+
+    return true;
+  });
+}
+
+function tokenExpireText(token) {
+  try {
+    const part = token.split('.')[1];
+    const base64 = part.replace(/-/g, '+').replace(/_/g, '/');
+    const json = JSON.parse(atob(base64));
+    if (!json.exp) return '未知';
+    return new Date(json.exp * 1000).toLocaleString();
+  } catch (e) {
+    return '解析失败';
+  }
 }
 
 async function signIn() {
   const url = `${CFG.base8805}/task/app/api/sign/save`;
   const r = await httpRequest(url, 'GET');
-  return msgOf(r.json) || r.raw;
+  return msgOf(r.json) || r.raw || '无返回';
 }
 
 async function queryIntegral() {
   const r = await httpRequest(`${CFG.base8081}/base/app/api/customer/statistics`, 'POST', {
     customerCode: CFG.customerCode
   });
+
   const data = r.json && r.json.data ? r.json.data : {};
+
   return data.memberIntegral || data.integral || data.points || '';
 }
 
 async function queryTaskList() {
-  const r = await httpRequest(`${CFG.base8805}/task/app/api/task/completion`, 'POST', { taskType: '2' });
-  return (r.json && r.json.data && r.json.data.list) ? r.json.data.list : [];
+  const r = await httpRequest(`${CFG.base8805}/task/app/api/task/completion`, 'POST', {
+    taskType: '2'
+  });
+
+  return r.json && r.json.data && r.json.data.list ? r.json.data.list : [];
 }
 
 async function getRecommendItems() {
   const r = await httpRequest(`${CFG.base8082}/discover/app/api/circlecontent/page`, 'POST', {
-    pageNo: '1', pageSize: '20', ids: '', sort: '0', themeId: '', customerCode: CFG.customerCode,
-    seriesId: '', isGreat: '1', circleType: '', funLabelIds: [], timestamp: ''
+    pageNo: '1',
+    pageSize: '20',
+    ids: '',
+    sort: '0',
+    themeId: '',
+    customerCode: CFG.customerCode,
+    seriesId: '',
+    isGreat: '1',
+    circleType: '',
+    funLabelIds: [],
+    timestamp: ''
   });
+
   const records = r.json && r.json.data && r.json.data.records ? r.json.data.records : [];
   return records.filter(x => x && x.id);
 }
 
 async function getRecommendArticles() {
-  const r = await httpRequest(`${CFG.base8082.replace(':8082', ':18381')}/recommend/app/api/recommend/queryRecommendContentPage`, 'POST', {
-    pageSize: '20', distinct_id: '20251127282086', pageNo: '1'
+  const base18381 = CFG.base8082.replace(':8082', ':18381');
+
+  const r = await httpRequest(`${base18381}/recommend/app/api/recommend/queryRecommendContentPage`, 'POST', {
+    pageSize: '20',
+    distinct_id: '20251127282086',
+    pageNo: '1'
   });
+
   const records = r.json && r.json.data && r.json.data.records ? r.json.data.records : [];
-  return records.filter(x => x && x.id);
+
+  return records
+    .filter(x => x && (x.id || x.contentId || x.articleId))
+    .map(x => {
+      if (!x.id) {
+        x.id = x.contentId || x.articleId;
+      }
+      return x;
+    });
 }
 
 async function doLike(item) {
   const r = await httpRequest(`${CFG.base8082}/discover/app/api/circlecontent/like`, 'POST', {
-    id: item.id, customerCode: CFG.customerCode
+    id: item.id,
+    customerCode: CFG.customerCode
   });
-  return msgOf(r.json) || r.raw;
+
+  return msgOf(r.json) || r.raw || '无返回';
 }
 
 async function doShare(item) {
   const url = `${CFG.base8082}/discover/app/api/circlecontent/share?id=${encodeURIComponent(item.id)}&shareTypeCode=1&typeCode=4`;
+
   const r = await httpRequest(url, 'GET');
-  return msgOf(r.json) || r.raw;
+
+  return msgOf(r.json) || r.raw || '无返回';
 }
 
 async function doBrowse(item) {
-  const payload = { componentType: 1, innerId: item.id };
+  const payload = {
+    componentType: 1,
+    innerId: item.id
+  };
+
+  const detailUrl = `${CFG.base8082}/discover/app/api/circlecontent/share/fetch/${encodeURIComponent(item.id)}?customerCode=${encodeURIComponent(CFG.customerCode)}`;
+
+  await httpRequest(detailUrl, 'GET');
+
   const t1 = await httpRequest(`${CFG.base8082}/discover/app/api/dis_research_component/touchSave`, 'POST', payload);
+
+  await sleep(BROWSE_WAIT_MS);
+
   const t2 = await httpRequest(`${CFG.base8082}/discover/app/api/dis_research_component/isTrigger`, 'POST', payload);
-  return [msgOf(t1.json) || t1.raw, msgOf(t2.json) || t2.raw].join(' / ');
+
+  return [
+    msgOf(t1.json) || t1.raw || 'touchSave 无返回',
+    msgOf(t2.json) || t2.raw || 'isTrigger 无返回'
+  ].join(' / ');
 }
 
 async function runTask(task, items) {
   const logs = [];
-  const total = Math.max(1, Number(task.count || 1));
-  const pool = items.length ? items : [];
   let success = 0;
 
+  let total = Math.max(1, Number(task.count || 1));
+
+  if (task.type === 'browse') {
+    total = 5;
+  }
+
+  const pool = uniqById(items || []);
+
+  if (!pool.length) {
+    logs.push(`${task.name}: 没有可用内容`);
+    return {
+      logs,
+      success,
+      total
+    };
+  }
+
   for (let i = 0; i < total; i++) {
-    const item = pool[i % pool.length];
+    let item;
+
+    if (task.type === 'browse') {
+      item = pool[i];
+    } else {
+      item = pool[i % pool.length];
+    }
+
     if (!item) {
-      logs.push(`${task.name}: 没有可用内容`);
+      logs.push(`${task.name} ${i + 1}/${total}: 内容不足，停止`);
       break;
     }
+
     try {
       let res = '';
-      if (task.type === 'like') res = await doLike(item);
-      if (task.type === 'share') res = await doShare(item);
-      if (task.type === 'browse') res = await doBrowse(item);
+
+      if (task.type === 'like') {
+        res = await doLike(item);
+      } else if (task.type === 'share') {
+        res = await doShare(item);
+      } else if (task.type === 'browse') {
+        res = await doBrowse(item);
+      }
+
       logs.push(`${task.name} ${i + 1}/${total}: ${res}`);
-      if (/成功|操作成功|已点赞|已经|重复|上限/.test(res)) success++;
-      if (hasExpired(res)) break;
+
+      if (/成功|操作成功|已点赞|已经|重复|上限|完成/.test(res)) {
+        success++;
+      }
+
+      if (hasExpired(res)) {
+        logs.push(`${task.name}: 疑似登录态过期，停止后续操作`);
+        break;
+      }
     } catch (e) {
       logs.push(`${task.name} ${i + 1}/${total}: 请求失败 ${String(e)}`);
       break;
     }
   }
-  return { logs, success, total };
+
+  return {
+    logs,
+    success,
+    total
+  };
 }
 
 async function main() {
   const logs = [];
+
+  logs.push(`开始执行: ${new Date().toLocaleString()}`);
+  logs.push(`Token理论过期时间: ${tokenExpireText(CFG.xAccessToken)}`);
 
   try {
     const signMsg = await signIn();
@@ -189,43 +367,104 @@ async function main() {
 
   try {
     const integral = await queryIntegral();
-    if (integral !== '') logs.push(`积分余额: ${integral}`);
+    if (integral !== '') {
+      logs.push(`运行前积分: ${integral}`);
+    } else {
+      logs.push('运行前积分: 未获取到');
+    }
   } catch (e) {
-    logs.push(`积分查询失败: ${String(e)}`);
+    logs.push(`运行前积分查询失败: ${String(e)}`);
   }
 
   let taskList = [];
   let items = [];
+
   try {
-    const [list, rec1, rec2] = await Promise.all([
+    const result = await Promise.all([
       queryTaskList(),
       getRecommendItems(),
       getRecommendArticles()
     ]);
-    taskList = list;
-    items = [...rec1, ...rec2];
+
+    taskList = result[0] || [];
+
+    const rec1 = result[1] || [];
+    const rec2 = result[2] || [];
+
+    items = uniqById([...rec1, ...rec2]);
+
+    logs.push(`任务列表数量: ${taskList.length}`);
+    logs.push(`可用内容数量: ${items.length}`);
   } catch (e) {
     logs.push(`拉取任务/内容失败: ${String(e)}`);
   }
 
   for (const t of TASKS) {
-    const found = taskList.find(x => String(x.id) === String(t.code) || x.taskName === t.name);
+    const found = taskList.find(x => {
+      return String(x.id) === String(t.code) || x.taskName === t.name;
+    });
+
     if (found) {
-      logs.push(`任务：${found.taskName}，积分 ${found.points || t.points}，次数 ${found.triggerFrequency || t.count}`);
+      logs.push(`任务: ${found.taskName}，积分 ${found.points || t.points}，次数 ${found.triggerFrequency || t.count}`);
+    } else {
+      logs.push(`任务: ${t.name}，未在任务列表中匹配到，仍尝试执行`);
     }
-    const result = await runTask(t, items);
+
+    let taskItems = items;
+
+    if (t.type === 'browse') {
+      taskItems = uniqById(items).slice(0, 5);
+      logs.push(`浏览任务准备内容数: ${taskItems.length}/5`);
+    }
+
+    const result = await runTask(t, taskItems);
+
     logs.push(`${t.name}汇总: ${result.success}/${result.total}`);
     logs.push(...result.logs);
   }
 
-  const summary = logs.filter(x => /签到:|积分余额|汇总|失败|过期/.test(x)).join('\n');
+  try {
+    const afterIntegral = await queryIntegral();
+    if (afterIntegral !== '') {
+      logs.push(`运行后积分: ${afterIntegral}`);
+    } else {
+      logs.push('运行后积分: 未获取到');
+    }
+  } catch (e) {
+    logs.push(`运行后积分查询失败: ${String(e)}`);
+  }
+
+  logs.push(`结束执行: ${new Date().toLocaleString()}`);
+
   const detail = logs.join('\n');
-  const subtitle = /失败/.test(detail) ? '部分任务失败' : '执行完成';
+
+  console.log('========== 广汽本田任务完整日志 ==========');
+  console.log(detail);
+  console.log('========== 广汽本田任务日志结束 ==========');
+
+  const summary = logs
+    .filter(x => /签到:|运行前积分|运行后积分|汇总|失败|过期|失效|浏览任务准备内容数|Token理论过期时间/.test(x))
+    .join('\n');
+
+  const subtitle = /失败|过期|失效|未授权|unauthorized|invalid/i.test(detail)
+    ? '部分任务失败'
+    : '执行完成';
+
   notify('广汽本田签到+任务', subtitle, (summary || detail).slice(0, 1200));
-  if (typeof $done === 'function') $done();
+
+  if (typeof $done === 'function') {
+    $done({});
+  }
 }
 
 main().catch(e => {
-  notify('广汽本田签到+任务', '脚本异常', String(e));
-  if (typeof $done === 'function') $done();
+  const err = String(e);
+
+  console.log('脚本异常: ' + err);
+
+  notify('广汽本田签到+任务', '脚本异常', err);
+
+  if (typeof $done === 'function') {
+    $done({});
+  }
 });
