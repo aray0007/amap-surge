@@ -1,23 +1,24 @@
 /*
-广汽本田 QX 合并版脚本
-功能：
-1) 签到
-2) 日常任务：点赞 / 分享 / 浏览
-3) 积分余额查询
+广汽本田 Surge 合并版脚本
+功能：签到 + 积分余额 + 点赞 + 分享 + 浏览
+
+Surge 使用示例：
+[Script]
+广汽本田签到任务 = type=cron,cronexp="0 8 * * *",script-path=你的脚本地址,timeout=120
 
 说明：
-- 这份脚本基于你最新 HAR 中确认的接口。
-- 如果 X-Access-Token 过期，需要重新抓包更新。
+- 如果 X-Access-Token 过期，需要重新抓包更新 CFG。
+- 当前登录态来自 2026-05-25 最新 HAR。
 */
 
 const CFG = {
   base8081: 'https://gha.ghac.cn:8081',
   base8082: 'https://gha.ghac.cn:8082',
   base8805: 'https://gha.ghac.cn:8805',
-  customerCode: '3784147841324d23b53ffd90afc74c88',
-  xAccessToken: 'eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMGUwMTIzOGI4YzQ0Y2Y2YTg2NmU0ODYyMzZhOTBkNiIsImV4cCI6MTc3OTU4OTI0MCwidXNlcklkIjoiMjAyOTYxNzYzOTU1MDcwMTU2OCIsImlhdCI6MTc3OTUwMjg0MH0.2-vZn5mslNXKaNqU4XBMP7sJ7OYjLPRCE2j0NoTrxGE',
+  customerCode: 'bf656bf1d3004b65aef9a508b79b93e5',
+  xAccessToken: 'eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJhZjczYzE3Zjc2YWU0YjlmYjI4ZjE4NmY1N2UxZTlkOSIsImV4cCI6MTc3OTcyNTg0MSwidXNlcklkIjoiMjAyOTYxNzYzOTU1MDcwMTU2OCIsImlhdCI6MTc3OTYzOTQ0MX0.VRokFVVqaBqiKvv2GPV5uzzWcN_vUUl1DbZtm0Af8QE',
   deviceToken: '418a3bf0bf34c653f76dfaabb70e330edc2228f08e39448de3bf6f7a7f4756a5',
-  cookie: 'HWWAFSESID=c0e77b82df5c3894ed; HWWAFSESTIME=1779502838132; sensorsdata2015jssdkcross=%7B%22distinct_id%22%3A%2219e5284be722eae-0d8c9b5b17ab288-525a3d5b-351348-19e5284be734b71%22%2C%22first_id%22%3A%22%22%2C%22props%22%3A%7B%22%24latest_traffic_source_type%22%3A%22%E7%9B%B4%E6%8E%A5%E6%B5%81%E9%87%8F%22%2C%22%24latest_search_keyword%22%3A%22%E6%9C%AA%E5%8F%96%E5%88%B0%E5%80%BC_%E7%9B%B4%E6%8E%A5%E6%89%93%E5%BC%80%22%2C%22%24latest_referrer%22%3A%22%22%7D%2C%22identities%22%3A%22eyIkaWRlbnRpdHlfY29va2llX2lkIjoiMTllNTI4NGJlNzIyZWFlLTBkOGM5YjViMTdhYjI4OC01MjVhM2Q1Yi0zNTEzNDgtMTllNTI4NGJlNzM0YjcxIn0%3D%22%2C%22history_login_id%22%3A%7B%22name%22%3A%22%22%2C%22value%22%3A%22%22%7D%2C%22%24device_id%22%3A%2219e5284be722eae-0d8c9b5b17ab288-525a3d5b-351348-19e5284be734b71%22%7D; sajssdk_2015_cross_new_user=1',
+  cookie: 'HWWAFSESID=5c7f088e963b6099ef; HWWAFSESTIME=1779639438391',
   version: '4.1.7',
   os: 'ios',
   userAgent: 'GHA-APP-AppStore/4.1.7 (iPhone; iOS 26.5; Scale/3.00)',
@@ -32,8 +33,13 @@ const TASKS = [
 ];
 
 function notify(title, subtitle, message) {
-  if (typeof $notify === 'function') $notify(title, subtitle || '', message || '');
-  else console.log([title, subtitle, message].filter(Boolean).join(' | '));
+  if (typeof $notification !== 'undefined') {
+    $notification.post(title, subtitle || '', message || '');
+  } else if (typeof $notify === 'function') {
+    $notify(title, subtitle || '', message || '');
+  } else {
+    console.log([title, subtitle, message].filter(Boolean).join(' | '));
+  }
 }
 
 function headers() {
@@ -55,12 +61,27 @@ function headers() {
   return h;
 }
 
-async function fetchJson(url, method = 'GET', body = null) {
-  const opt = { url, method, headers: headers() };
-  if (body != null) opt.body = typeof body === 'string' ? body : JSON.stringify(body);
-  const resp = await $task.fetch(opt);
-  const text = resp.body || '';
-  try { return { raw: text, json: JSON.parse(text) }; } catch (_) { return { raw: text, json: null }; }
+function httpRequest(url, method = 'GET', body = null) {
+  return new Promise((resolve, reject) => {
+    const req = { url, headers: headers() };
+    if (body !== null && body !== undefined) {
+      req.body = typeof body === 'string' ? body : JSON.stringify(body);
+    }
+
+    const callback = (error, response, data) => {
+      if (error) return reject(error);
+      const text = data || '';
+      let json = null;
+      try { json = JSON.parse(text); } catch (_) {}
+      resolve({ raw: text, json, response });
+    };
+
+    if (method.toUpperCase() === 'GET') {
+      $httpClient.get(req, callback);
+    } else {
+      $httpClient.post(req, callback);
+    }
+  });
 }
 
 function msgOf(v) {
@@ -74,12 +95,12 @@ function hasExpired(text) {
 
 async function signIn() {
   const url = `${CFG.base8805}/task/app/api/sign/save`;
-  const r = await fetchJson(url, 'GET');
+  const r = await httpRequest(url, 'GET');
   return msgOf(r.json) || r.raw;
 }
 
 async function queryIntegral() {
-  const r = await fetchJson(`${CFG.base8081}/base/app/api/customer/statistics`, 'POST', {
+  const r = await httpRequest(`${CFG.base8081}/base/app/api/customer/statistics`, 'POST', {
     customerCode: CFG.customerCode
   });
   const data = r.json && r.json.data ? r.json.data : {};
@@ -87,12 +108,12 @@ async function queryIntegral() {
 }
 
 async function queryTaskList() {
-  const r = await fetchJson(`${CFG.base8805}/task/app/api/task/completion`, 'POST', { taskType: '2' });
+  const r = await httpRequest(`${CFG.base8805}/task/app/api/task/completion`, 'POST', { taskType: '2' });
   return (r.json && r.json.data && r.json.data.list) ? r.json.data.list : [];
 }
 
 async function getRecommendItems() {
-  const r = await fetchJson(`${CFG.base8082}/discover/app/api/circlecontent/page`, 'POST', {
+  const r = await httpRequest(`${CFG.base8082}/discover/app/api/circlecontent/page`, 'POST', {
     pageNo: '1', pageSize: '20', ids: '', sort: '0', themeId: '', customerCode: CFG.customerCode,
     seriesId: '', isGreat: '1', circleType: '', funLabelIds: [], timestamp: ''
   });
@@ -101,7 +122,7 @@ async function getRecommendItems() {
 }
 
 async function getRecommendArticles() {
-  const r = await fetchJson(`${CFG.base8082.replace(':8082', ':18381')}/recommend/app/api/recommend/queryRecommendContentPage`, 'POST', {
+  const r = await httpRequest(`${CFG.base8082.replace(':8082', ':18381')}/recommend/app/api/recommend/queryRecommendContentPage`, 'POST', {
     pageSize: '20', distinct_id: '20251127282086', pageNo: '1'
   });
   const records = r.json && r.json.data && r.json.data.records ? r.json.data.records : [];
@@ -109,7 +130,7 @@ async function getRecommendArticles() {
 }
 
 async function doLike(item) {
-  const r = await fetchJson(`${CFG.base8082}/discover/app/api/circlecontent/like`, 'POST', {
+  const r = await httpRequest(`${CFG.base8082}/discover/app/api/circlecontent/like`, 'POST', {
     id: item.id, customerCode: CFG.customerCode
   });
   return msgOf(r.json) || r.raw;
@@ -117,14 +138,14 @@ async function doLike(item) {
 
 async function doShare(item) {
   const url = `${CFG.base8082}/discover/app/api/circlecontent/share?id=${encodeURIComponent(item.id)}&shareTypeCode=1&typeCode=4`;
-  const r = await fetchJson(url, 'GET');
+  const r = await httpRequest(url, 'GET');
   return msgOf(r.json) || r.raw;
 }
 
 async function doBrowse(item) {
   const payload = { componentType: 1, innerId: item.id };
-  const t1 = await fetchJson(`${CFG.base8082}/discover/app/api/dis_research_component/touchSave`, 'POST', payload);
-  const t2 = await fetchJson(`${CFG.base8082}/discover/app/api/dis_research_component/isTrigger`, 'POST', payload);
+  const t1 = await httpRequest(`${CFG.base8082}/discover/app/api/dis_research_component/touchSave`, 'POST', payload);
+  const t2 = await httpRequest(`${CFG.base8082}/discover/app/api/dis_research_component/isTrigger`, 'POST', payload);
   return [msgOf(t1.json) || t1.raw, msgOf(t2.json) || t2.raw].join(' / ');
 }
 
@@ -133,6 +154,7 @@ async function runTask(task, items) {
   const total = Math.max(1, Number(task.count || 1));
   const pool = items.length ? items : [];
   let success = 0;
+
   for (let i = 0; i < total; i++) {
     const item = pool[i % pool.length];
     if (!item) {
@@ -203,4 +225,7 @@ async function main() {
   if (typeof $done === 'function') $done();
 }
 
-main();
+main().catch(e => {
+  notify('广汽本田签到+任务', '脚本异常', String(e));
+  if (typeof $done === 'function') $done();
+});
