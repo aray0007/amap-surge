@@ -1,33 +1,84 @@
 /*
-广汽本田 QX 凭证抓取脚本
-用途：手动打开 App 并点击签到时，保存关键请求头。
-用法：加入 Quantumult X Rewrite，匹配 sign 接口。
+广汽本田 登录态获取脚本
+用于自动保存 X-Access-Token / customerCode / deviceToken / Cookie
 */
 
-const KEY_PREFIX = "gac_honda_";
+const KEY = 'GHA_AUTH';
 
-function save(key, value) {
-  if (value) $prefs.setValueForKey(value, KEY_PREFIX + key);
+function notify(title, subtitle, message) {
+  try {
+    if (typeof $notification !== 'undefined') {
+      $notification.post(title, subtitle || '', message || '');
+    }
+  } catch (_) {}
+
+  try {
+    if (typeof $notify === 'function') {
+      $notify(title, subtitle || '', message || '');
+    }
+  } catch (_) {}
+
+  console.log([title, subtitle, message].filter(Boolean).join(' | '));
 }
 
-let headers = ($request && $request.headers) ? $request.headers : {};
+function getHeader(headers, name) {
+  if (!headers) return '';
 
-save("x_access_token", headers["X-Access-Token"] || headers["x-access-token"]);
-save("device_token", headers["deviceToken"] || headers["devicetoken"]);
-save("customer_code", headers["customerCode"] || headers["customercode"]);
-save("version", headers["version"] || headers["Version"]);
-save("os", headers["os"] || headers["OS"]);
-save("user_agent", headers["User-Agent"] || headers["user-agent"]);
-save("model_type", headers["modelType"] || headers["modeltype"] || headers["model-type"]);
-save("system_version", headers["systemVersion"] || headers["systemversion"]);
-save("cookie", headers["Cookie"] || headers["cookie"]);
+  const target = name.toLowerCase();
 
-let ok = ($prefs.valueForKey(KEY_PREFIX + "x_access_token") || "") && ($prefs.valueForKey(KEY_PREFIX + "customer_code") || "");
+  for (const k in headers) {
+    if (String(k).toLowerCase() === target) {
+      return headers[k];
+    }
+  }
 
-if (ok) {
-  $notify("广汽本田", "凭证已保存", "可以去跑定时签到脚本了");
-} else {
-  $notify("广汽本田", "没有抓到完整凭证", "请在 App 里手动点一次签到，再看一次日志");
+  return '';
+}
+
+function tokenExpireText(token) {
+  try {
+    const part = token.split('.')[1];
+    const base64 = part.replace(/-/g, '+').replace(/_/g, '/');
+    const json = JSON.parse(atob(base64));
+    if (!json.exp) return '未知';
+    return new Date(json.exp * 1000).toLocaleString();
+  } catch (e) {
+    return '解析失败';
+  }
+}
+
+try {
+  const headers = $request.headers || {};
+
+  const oldRaw = $persistentStore.read(KEY);
+  const old = oldRaw ? JSON.parse(oldRaw) : {};
+
+  const auth = {
+    xAccessToken: getHeader(headers, 'X-Access-Token') || old.xAccessToken || '',
+    customerCode: getHeader(headers, 'customerCode') || old.customerCode || '',
+    deviceToken: getHeader(headers, 'deviceToken') || old.deviceToken || '',
+    cookie: getHeader(headers, 'Cookie') || old.cookie || '',
+    version: getHeader(headers, 'version') || old.version || '4.1.7',
+    os: getHeader(headers, 'os') || old.os || 'ios',
+    modelType: getHeader(headers, 'modelType') || old.modelType || '0',
+    systemVersion: getHeader(headers, 'systemVersion') || old.systemVersion || '',
+    userAgent: getHeader(headers, 'User-Agent') || old.userAgent || '',
+    updatedAt: new Date().toLocaleString()
+  };
+
+  if (auth.xAccessToken && auth.customerCode) {
+    $persistentStore.write(JSON.stringify(auth), KEY);
+
+    notify(
+      '广汽本田登录态已更新',
+      `Token过期: ${tokenExpireText(auth.xAccessToken)}`,
+      `更新时间: ${auth.updatedAt}`
+    );
+  } else {
+    console.log('未识别到完整登录态');
+  }
+} catch (e) {
+  console.log('广汽本田登录态获取失败: ' + String(e));
 }
 
 $done({});
