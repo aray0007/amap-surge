@@ -1,31 +1,34 @@
 /*
-广汽本田 Surge 合并版脚本
+广汽本田 Surge 合并版脚本 - 自动读取登录态版
 功能：签到 + 积分余额 + 点赞 + 分享 + 浏览 5 条
 
 Surge 使用示例：
 [Script]
 广汽本田签到任务 = type=cron,cronexp="0 8 * * *",script-path=你的脚本地址,timeout=180
 
+配套登录态获取脚本：
+[Script]
+广汽本田获取登录态 = type=http-request,pattern=^https:\/\/gha\.ghac\.cn:(8081|8082|8805|18381)\/,script-path=登录态获取脚本地址,requires-body=0
+
 说明：
-- 当前登录态来自 2026-05-25 00:48 最新 HAR。
-- Token 理论过期时间：2026-05-26 00:48:37。
-- 如果 App 静默刷新登录态，旧 token 可能会被服务端提前废掉。
+- 不再把 X-Access-Token / Cookie / customerCode / deviceToken 写死在任务脚本里。
+- 登录态从 $persistentStore 的 GHA_AUTH 读取。
+- 如果提示缺少登录态或登录失效，请先打开广汽本田 App，让 Surge 抓取一次最新请求。
 - 浏览任务固定浏览 5 条不同内容。
 */
 
-const CFG = {
+const STORE_KEY = 'GHA_AUTH';
+
+const DEFAULT_CFG = {
   base8081: 'https://gha.ghac.cn:8081',
   base8082: 'https://gha.ghac.cn:8082',
   base8805: 'https://gha.ghac.cn:8805',
-  customerCode: '5c1c46829f6a46fba42ce21653d29757',
-  xAccessToken: 'eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJkYzMxN2M4Mjg2NGY0ZWU5YTA0MzM0OGRlNTE5ZGY4MSIsImV4cCI6MTc3OTcyNzcxNywidXNlcklkIjoiMjAyOTYxNzYzOTU1MDcwMTU2OCIsImlhdCI6MTc3OTY0MTMxN30.cuT1YXhfc5QG_dF8GzujVjp9PYlFCb5EQmR0JC2CVuw',
-  deviceToken: '418a3bf0bf34c653f76dfaabb70e330edc2228f08e39448de3bf6f7a7f4756a5',
-  cookie: 'HWWAFSESID=958e8121a64b658e454; HWWAFSESTIME=1779641312868',
+  base18381: 'https://gha.ghac.cn:18381',
   version: '4.1.7',
   os: 'ios',
-  userAgent: 'GHA-APP-AppStore/4.1.7 (iPhone; iOS 26.5; Scale/3.00)',
+  userAgent: 'GHA-APP-AppStore/4.1.7',
   modelType: '0',
-  systemVersion: '26.5'
+  systemVersion: ''
 };
 
 const TASKS = [
@@ -35,6 +38,46 @@ const TASKS = [
 ];
 
 const BROWSE_WAIT_MS = 8000;
+
+function safeJsonParse(text, fallback) {
+  try {
+    return JSON.parse(text);
+  } catch (_) {
+    return fallback;
+  }
+}
+
+function loadAuth() {
+  try {
+    if (typeof $persistentStore === 'undefined' || !$persistentStore) {
+      return {};
+    }
+
+    const raw = $persistentStore.read(STORE_KEY);
+    if (!raw) return {};
+
+    return safeJsonParse(raw, {}) || {};
+  } catch (e) {
+    console.log('读取广汽本田登录态失败: ' + String(e));
+    return {};
+  }
+}
+
+const SAVED_AUTH = loadAuth();
+
+const CFG = {
+  ...DEFAULT_CFG,
+  customerCode: SAVED_AUTH.customerCode || '',
+  xAccessToken: SAVED_AUTH.xAccessToken || '',
+  deviceToken: SAVED_AUTH.deviceToken || '',
+  cookie: SAVED_AUTH.cookie || '',
+  version: SAVED_AUTH.version || DEFAULT_CFG.version,
+  os: SAVED_AUTH.os || DEFAULT_CFG.os,
+  userAgent: SAVED_AUTH.userAgent || DEFAULT_CFG.userAgent,
+  modelType: SAVED_AUTH.modelType || DEFAULT_CFG.modelType,
+  systemVersion: SAVED_AUTH.systemVersion || DEFAULT_CFG.systemVersion,
+  authUpdatedAt: SAVED_AUTH.updatedAt || ''
+};
 
 function notify(title, subtitle, message) {
   const sub = subtitle || '';
@@ -65,23 +108,25 @@ function notify(title, subtitle, message) {
 
 function headers() {
   const h = {
-    'Accept': '*/*',
+    Accept: '*/*',
     'Accept-Language': 'zh-Hans-CN;q=1',
-    'Connection': 'keep-alive',
+    Connection: 'keep-alive',
     'Content-Type': 'application/json',
     'User-Agent': CFG.userAgent,
-
-    'version': CFG.version,
-    'os': CFG.os,
-    'modelType': CFG.modelType,
-    'systemVersion': CFG.systemVersion,
-    'deviceToken': CFG.deviceToken,
-    'customerCode': CFG.customerCode,
+    version: CFG.version,
+    os: CFG.os,
+    modelType: CFG.modelType,
+    deviceToken: CFG.deviceToken,
+    customerCode: CFG.customerCode,
     'X-Access-Token': CFG.xAccessToken
   };
 
+  if (CFG.systemVersion) {
+    h.systemVersion = CFG.systemVersion;
+  }
+
   if (CFG.cookie) {
-    h['Cookie'] = CFG.cookie;
+    h.Cookie = CFG.cookie;
   }
 
   return h;
@@ -104,11 +149,7 @@ function httpRequest(url, method = 'GET', body = null) {
       }
 
       const text = data || '';
-      let json = null;
-
-      try {
-        json = JSON.parse(text);
-      } catch (_) {}
+      const json = safeJsonParse(text, null);
 
       resolve({
         raw: text,
@@ -133,7 +174,7 @@ function msgOf(v) {
 }
 
 function hasExpired(text) {
-  return /token|登录|权限|未授权|unauthorized|invalid|过期|失效/i.test(text || '');
+  return /登录已过期|登录过期|登录失效|登录状态失效|请登录|请重新登录|重新登陆|token失效|token过期|invalid token|unauthorized|未授权|无权限|鉴权失败/i.test(text || '');
 }
 
 function sleep(ms) {
@@ -170,14 +211,28 @@ function uniqById(arr) {
 
 function tokenExpireText(token) {
   try {
+    if (!token || token.split('.').length < 2) return '未知';
+
     const part = token.split('.')[1];
     const base64 = part.replace(/-/g, '+').replace(/_/g, '/');
     const json = JSON.parse(atob(base64));
+
     if (!json.exp) return '未知';
+
     return new Date(json.exp * 1000).toLocaleString();
   } catch (e) {
     return '解析失败';
   }
+}
+
+function maskToken(token) {
+  if (!token) return '';
+  if (token.length <= 18) return token.slice(0, 3) + '***';
+  return token.slice(0, 10) + '...' + token.slice(-8);
+}
+
+function authReady() {
+  return !!(CFG.xAccessToken && CFG.customerCode && CFG.deviceToken);
 }
 
 async function signIn() {
@@ -224,9 +279,7 @@ async function getRecommendItems() {
 }
 
 async function getRecommendArticles() {
-  const base18381 = CFG.base8082.replace(':8082', ':18381');
-
-  const r = await httpRequest(`${base18381}/recommend/app/api/recommend/queryRecommendContentPage`, 'POST', {
+  const r = await httpRequest(`${CFG.base18381}/recommend/app/api/recommend/queryRecommendContentPage`, 'POST', {
     pageSize: '20',
     distinct_id: '20251127282086',
     pageNo: '1'
@@ -297,11 +350,7 @@ async function runTask(task, items) {
 
   if (!pool.length) {
     logs.push(`${task.name}: 没有可用内容`);
-    return {
-      logs,
-      success,
-      total
-    };
+    return { logs, success, total };
   }
 
   for (let i = 0; i < total; i++) {
@@ -345,22 +394,40 @@ async function runTask(task, items) {
     }
   }
 
-  return {
-    logs,
-    success,
-    total
-  };
+  return { logs, success, total };
 }
 
 async function main() {
   const logs = [];
 
   logs.push(`开始执行: ${new Date().toLocaleString()}`);
+  logs.push(`登录态更新时间: ${CFG.authUpdatedAt || '未知'}`);
   logs.push(`Token理论过期时间: ${tokenExpireText(CFG.xAccessToken)}`);
+  logs.push(`Token: ${maskToken(CFG.xAccessToken) || '未读取到'}`);
+
+  if (!authReady()) {
+    const msg = '未读取到完整登录态，请先打开广汽本田 App，让 Surge 抓取一次 gha.ghac.cn 请求。';
+    logs.push(msg);
+    logs.push('需要字段: X-Access-Token / customerCode / deviceToken');
+
+    const detail = logs.join('\n');
+    console.log(detail);
+    notify('广汽本田签到+任务', '缺少登录态', detail.slice(0, 1200));
+
+    if (typeof $done === 'function') {
+      $done({});
+    }
+
+    return;
+  }
 
   try {
     const signMsg = await signIn();
     logs.push(`签到: ${signMsg}`);
+
+    if (hasExpired(signMsg)) {
+      logs.push('签到返回疑似登录态失效，请重新打开 App 刷新登录态。');
+    }
   } catch (e) {
     logs.push(`签到失败: ${String(e)}`);
   }
@@ -421,6 +488,11 @@ async function main() {
 
     logs.push(`${t.name}汇总: ${result.success}/${result.total}`);
     logs.push(...result.logs);
+
+    if (result.logs.some(x => hasExpired(x))) {
+      logs.push('检测到登录态失效，停止后续任务。');
+      break;
+    }
   }
 
   try {
@@ -443,10 +515,10 @@ async function main() {
   console.log('========== 广汽本田任务日志结束 ==========');
 
   const summary = logs
-    .filter(x => /签到:|运行前积分|运行后积分|汇总|失败|过期|失效|浏览任务准备内容数|Token理论过期时间/.test(x))
+    .filter(x => /签到:|运行前积分|运行后积分|汇总|失败|过期|失效|未授权|unauthorized|invalid|浏览任务准备内容数|Token理论过期时间|登录态更新时间/.test(x))
     .join('\n');
 
-  const subtitle = /失败|过期|失效|未授权|unauthorized|invalid/i.test(detail)
+  const subtitle = /失败|过期|失效|未授权|unauthorized|invalid|缺少登录态/i.test(detail)
     ? '部分任务失败'
     : '执行完成';
 
