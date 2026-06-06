@@ -1,7 +1,5 @@
 /**
- * 中国移动 - 获取 Token
- *
- * 从签到页面 API 响应的 Set-Cookie 中提取 QWHD_SESSION_TOKEN
+ * 中国移动 - Token (debug)
  *
  * 配置:
  *   [Script]
@@ -10,24 +8,54 @@
  *   hostname = %APPEND% wx.10086.cn
  */
 
-const headers = $response.headers;
-const setCookie = headers["Set-Cookie"] || headers["set-cookie"] || "";
+const h = $response.headers;
+let found = false;
 
-console.log("CMCC-Token: set-cookie=" + (setCookie ? setCookie.substring(0, 150) : "(empty)"));
+for (const key in h) {
+    const val = h[key];
+    if (key.toLowerCase().includes("set-cookie") || key.toLowerCase().includes("cookie")) {
+        console.log("CMCC [" + key + "] = " + val.substring(0, 200));
+    }
+    if (typeof val === "string" && val.includes("QWHD_SESSION_TOKEN")) {
+        const m = val.match(/QWHD_SESSION_TOKEN=([^;]+)/);
+        if (m) {
+            const ts = new Date().toLocaleString("zh-CN", { timeZone: "Asia/Shanghai" });
+            $persistentStore.write(m[1], "cmcc_token");
+            $persistentStore.write(ts, "cmcc_token_time");
+            console.log("CMCC: ✓ " + m[1].substring(0, 12));
+            $notify("中国移动 Token", "✅ 已更新", ts);
+            found = true;
+        }
+    }
+}
 
-const m = setCookie.match(/QWHD_SESSION_TOKEN=([^;]+)/);
+if (!found) {
+    for (const key in h) {
+        if (Array.isArray(h[key])) {
+            console.log("CMCC [array] " + key + " len=" + h[key].length);
+            h[key].forEach((v, i) => {
+                console.log("CMCC [" + i + "] " + v.substring(0, 200));
+                if (v.includes("QWHD_SESSION_TOKEN")) {
+                    const m = v.match(/QWHD_SESSION_TOKEN=([^;]+)/);
+                    if (m) {
+                        const ts = new Date().toLocaleString("zh-CN", { timeZone: "Asia/Shanghai" });
+                        $persistentStore.write(m[1], "cmcc_token");
+                        $persistentStore.write(ts, "cmcc_token_time");
+                        console.log("CMCC: ✓ " + m[1].substring(0, 12));
+                        $notify("中国移动 Token", "✅ 已更新", ts);
+                        found = true;
+                    }
+                }
+            });
+        }
+    }
+}
 
-if (m) {
-    const token = m[1];
-    const ts = new Date().toLocaleString("zh-CN", { timeZone: "Asia/Shanghai" });
-    $persistentStore.write(token, "cmcc_token");
-    $persistentStore.write(ts, "cmcc_token_time");
-    console.log("CMCC-Token: ✓ " + token.substring(0, 12) + "...");
-    $notify("中国移动 Token", "✅ 已更新", ts);
-} else {
-    console.log("CMCC-Token: ✗ 未找到");
-    // 打印所有 response header keys
-    console.log("CMCC-Token: resp-keys=" + Object.keys(headers).join(", "));
+if (!found) {
+    console.log("CMCC: ✗ 未找到 token");
+    console.log("CMCC: url=" + $request.url.substring(0, 80));
+    console.log("CMCC: status=" + $response.status);
+    console.log("CMCC: all-keys=" + Object.keys(h).join(", "));
 }
 
 $done({});
