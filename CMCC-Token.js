@@ -1,5 +1,5 @@
 /**
- * 中国移动 - Token (debug)
+ * 中国移动 - 获取 Token
  *
  * 配置:
  *   [Script]
@@ -8,45 +8,32 @@
  *   hostname = %APPEND% wx.10086.cn
  */
 
-const h = $response.headers;
-let found = false;
+var h = $response.headers;
+var found = false;
+var ts = new Date().toLocaleString("zh-CN", { timeZone: "Asia/Shanghai" });
 
-for (const key in h) {
-    const val = h[key];
-    if (key.toLowerCase().includes("set-cookie") || key.toLowerCase().includes("cookie")) {
-        console.log("CMCC [" + key + "] = " + val.substring(0, 200));
+function trySave(val) {
+    if (typeof val !== "string") return false;
+    var m = val.match(/QWHD_SESSION_TOKEN=([^;]+)/);
+    if (m) {
+        $persistentStore.write(m[1], "cmcc_token");
+        $persistentStore.write(ts, "cmcc_token_time");
+        console.log("CMCC: token=" + m[1].substring(0, 12));
+        $notify("中国移动 Token", "✅ 已更新", ts);
+        return true;
     }
-    if (typeof val === "string" && val.includes("QWHD_SESSION_TOKEN")) {
-        const m = val.match(/QWHD_SESSION_TOKEN=([^;]+)/);
-        if (m) {
-            const ts = new Date().toLocaleString("zh-CN", { timeZone: "Asia/Shanghai" });
-            $persistentStore.write(m[1], "cmcc_token");
-            $persistentStore.write(ts, "cmcc_token_time");
-            console.log("CMCC: ✓ " + m[1].substring(0, 12));
-            $notify("中国移动 Token", "✅ 已更新", ts);
-            found = true;
-        }
-    }
+    return false;
 }
 
-if (!found) {
-    for (const key in h) {
-        if (Array.isArray(h[key])) {
-            console.log("CMCC [array] " + key + " len=" + h[key].length);
-            h[key].forEach((v, i) => {
-                console.log("CMCC [" + i + "] " + v.substring(0, 200));
-                if (v.includes("QWHD_SESSION_TOKEN")) {
-                    const m = v.match(/QWHD_SESSION_TOKEN=([^;]+)/);
-                    if (m) {
-                        const ts = new Date().toLocaleString("zh-CN", { timeZone: "Asia/Shanghai" });
-                        $persistentStore.write(m[1], "cmcc_token");
-                        $persistentStore.write(ts, "cmcc_token_time");
-                        console.log("CMCC: ✓ " + m[1].substring(0, 12));
-                        $notify("中国移动 Token", "✅ 已更新", ts);
-                        found = true;
-                    }
-                }
-            });
+for (var key in h) {
+    if (!h.hasOwnProperty(key)) continue;
+    var val = h[key];
+    console.log("CMCC: " + key + "=" + (typeof val === "string" ? val.substring(0, 100) : typeof val));
+    if (trySave(val)) { found = true; }
+    if (Array.isArray(val)) {
+        for (var i = 0; i < val.length; i++) {
+            console.log("CMCC: [" + i + "] " + val[i].substring(0, 100));
+            if (trySave(val[i])) { found = true; }
         }
     }
 }
@@ -55,7 +42,6 @@ if (!found) {
     console.log("CMCC: ✗ 未找到 token");
     console.log("CMCC: url=" + $request.url.substring(0, 80));
     console.log("CMCC: status=" + $response.status);
-    console.log("CMCC: all-keys=" + Object.keys(h).join(", "));
 }
 
 $done({});
