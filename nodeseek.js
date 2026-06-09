@@ -187,10 +187,10 @@ function DoubleLog(o) { if (o) { $.log(`${o}`); $.notifyMsg.push(`${o}`); } }
 async function checkEnv() {
     if (!userCookie?.length) throw new Error('no available accounts found');
     const accounts = userCookie.slice(0, maxAccounts);
-    // 按 userId 去重，保留最后一条
+    // 按用户名去重，保留最后一条
     const uniqueMap = new Map();
     for (const o of accounts) {
-        const key = o.userId || o.token;
+        const key = o.userName || o.userId || o.token;
         uniqueMap.set(key, o);
     }
     const uniqueAccounts = [...uniqueMap.values()];
