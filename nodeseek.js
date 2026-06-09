@@ -36,23 +36,32 @@ const notify = $.isNode() ? require('./sendNotify') : '';
 async function main() {
     $.notifyMsg = [];
     $.title = '';
+    let okCount = 0, skipCount = 0, errCount = 0;
     for (let user of $.userList) {
         try {
             $.log(`[${user.userName || user.index}][INFO]当前签到模式:${$.is_default == 'false' ? '固定领取5个鸡腿' : '随机领取鸡腿'}\n`);
             const signMsg = await user.signin($.is_default);
-            if (signMsg) DoubleLog(`账号${user.index}「${user.userName || '未知'}」${signMsg}`);
             if (user.ckStatus) {
                 const userInfo = await user.userAccount();
-                $.log(`[${user.userName || user.index}][INFO]查询用户信息成功...\n`);
-                DoubleLog(`账号${user.index}「${userInfo?.member_name || user.userName || '未知'}」当前共${userInfo?.coin ?? '?'}个鸡腿🍗`);
+                const name = userInfo?.member_name || user.userName || '?';
+                const coin = userInfo?.coin ?? '?';
+                if (signMsg && signMsg.indexOf('已完成') >= 0) {
+                    skipCount++;
+                    DoubleLog(`「${name}」已签 ${coin}🍗`);
+                } else {
+                    okCount++;
+                    DoubleLog(`「${name}」✅${coin}🍗`);
+                }
             } else {
-                DoubleLog(`⛔️ 账号${user.index}「${user.userName || '未知'}」check ck error!`);
+                errCount++;
+                DoubleLog(`「${user.userName || user.index}」❌ ck失效`);
             }
         } catch (e) {
-            DoubleLog(`[账号${user.index} ${user.userName || ''}][ERROR]${e?.message || e}`);
+            errCount++;
+            DoubleLog(`「${user.userName || user.index}」❌ ${e?.message || e}`);
         }
     }
-    $.title = `完成 ${$.userList.length} 个账号`;
+    $.title = `NodeSeek ${okCount}成功/${skipCount}已签/${errCount}失败`;
     await sendMsg($.notifyMsg.join('\n'));
 }
 
@@ -192,15 +201,16 @@ async function checkEnv() {
     const uniqueAccounts = [];
     for (let i = accounts.length - 1; i >= 0; i--) {
         const o = accounts[i];
-        const key = o.userName || o.userId || o.token;
-        if (!seen[key]) { seen[key] = 1; uniqueAccounts.unshift(o); }
+        const key = o.userName || o.userId || o.token || ('idx_' + i);
+        $.log(`[DEDUP] idx=${i} key="${key}" userName="${o.userName}" userId="${o.userId}"\n`);
+        if (!seen[key]) { seen[key] = 1; uniqueAccounts.unshift(o); } else { $.log(`[DEDUP] 跳过重复 key="${key}"\n`); }
     }
     // 清理存储中的重复数据
     if (uniqueAccounts.length < accounts.length) {
         $.log(`[INFO]发现 ${accounts.length - uniqueAccounts.length} 条重复账号，已自动清理\n`);
         $.setjson(uniqueAccounts.slice(0, maxAccounts), ckName);
     }
-    $.log(`\n[INFO]检测到 ${userCookie?.length ?? 0} 个账号，去重后 ${uniqueAccounts.length} 个，上限 ${maxAccounts} 个\n`);
+    $.log(`\n[INFO]v2 检测到 ${userCookie?.length ?? 0} 个账号，去重后 ${uniqueAccounts.length} 个，上限 ${maxAccounts} 个\n`);
     $.userList.push(...uniqueAccounts.map(o => new UserInfo(o)).filter(Boolean));
 }
 function debug(g, e = 'debug') { if ($.is_debug === 'true') { $.log(`\n-----------${e}------------\n`); $.log(typeof g === 'string' ? g : $.toStr(g) || `debug error => t=${g}`); $.log(`\n-----------${e}------------\n`); } }
@@ -270,3 +280,4 @@ function Env(name, opts) {
         wait(ms) { return new Promise(resolve => setTimeout(resolve, ms)); }
         done(val = {}) { const cost = (Date.now() - this.startTime) / 1000; this.log('', `🔔${this.name}, 结束! 🕛 ${cost} 秒`, ''); switch (this.getEnv()) { case 'Surge': case 'Loon': case 'Stash': case 'Shadowrocket': case 'Quantumult X': default: if (typeof $done !== 'undefined') $done(val); break; case 'Node.js': break; } }
     }(name, opts);
+}
