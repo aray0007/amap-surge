@@ -187,8 +187,15 @@ function DoubleLog(o) { if (o) { $.log(`${o}`); $.notifyMsg.push(`${o}`); } }
 async function checkEnv() {
     if (!userCookie?.length) throw new Error('no available accounts found');
     const accounts = userCookie.slice(0, maxAccounts);
-    $.log(`\n[INFO]检测到 ${userCookie?.length ?? 0} 个账号，本次执行 ${accounts.length} 个账号，上限 ${maxAccounts} 个\n`);
-    $.userList.push(...accounts.map(o => new UserInfo(o)).filter(Boolean));
+    // 按 userId 去重，保留最后一条
+    const uniqueMap = new Map();
+    for (const o of accounts) {
+        const key = o.userId || o.token;
+        uniqueMap.set(key, o);
+    }
+    const uniqueAccounts = [...uniqueMap.values()];
+    $.log(`\n[INFO]检测到 ${userCookie?.length ?? 0} 个账号，去重后 ${uniqueAccounts.length} 个，上限 ${maxAccounts} 个\n`);
+    $.userList.push(...uniqueAccounts.map(o => new UserInfo(o)).filter(Boolean));
 }
 function debug(g, e = 'debug') { if ($.is_debug === 'true') { $.log(`\n-----------${e}------------\n`); $.log(typeof g === 'string' ? g : $.toStr(g) || `debug error => t=${g}`); $.log(`\n-----------${e}------------\n`); } }
 function ObjectKeys2LowerCase(obj) { return !obj ? {} : Object.fromEntries(Object.entries(obj).map(([k, v]) => [k.toLowerCase(), v])); }
