@@ -188,12 +188,13 @@ async function checkEnv() {
     if (!userCookie?.length) throw new Error('no available accounts found');
     const accounts = userCookie.slice(0, maxAccounts);
     // 按用户名去重，保留最后一条
-    const uniqueMap = new Map();
-    for (const o of accounts) {
+    const seen = {};
+    const uniqueAccounts = [];
+    for (let i = accounts.length - 1; i >= 0; i--) {
+        const o = accounts[i];
         const key = o.userName || o.userId || o.token;
-        uniqueMap.set(key, o);
+        if (!seen[key]) { seen[key] = 1; uniqueAccounts.unshift(o); }
     }
-    const uniqueAccounts = [...uniqueMap.values()];
     // 清理存储中的重复数据
     if (uniqueAccounts.length < accounts.length) {
         $.log(`[INFO]发现 ${accounts.length - uniqueAccounts.length} 条重复账号，已自动清理\n`);
@@ -269,4 +270,3 @@ function Env(name, opts) {
         wait(ms) { return new Promise(resolve => setTimeout(resolve, ms)); }
         done(val = {}) { const cost = (Date.now() - this.startTime) / 1000; this.log('', `🔔${this.name}, 结束! 🕛 ${cost} 秒`, ''); switch (this.getEnv()) { case 'Surge': case 'Loon': case 'Stash': case 'Shadowrocket': case 'Quantumult X': default: if (typeof $done !== 'undefined') $done(val); break; case 'Node.js': break; } }
     }(name, opts);
-}
