@@ -194,6 +194,11 @@ async function checkEnv() {
         uniqueMap.set(key, o);
     }
     const uniqueAccounts = [...uniqueMap.values()];
+    // 清理存储中的重复数据
+    if (uniqueAccounts.length < accounts.length) {
+        $.log(`[INFO]发现 ${accounts.length - uniqueAccounts.length} 条重复账号，已自动清理\n`);
+        $.setjson(uniqueAccounts.slice(0, maxAccounts), ckName);
+    }
     $.log(`\n[INFO]检测到 ${userCookie?.length ?? 0} 个账号，去重后 ${uniqueAccounts.length} 个，上限 ${maxAccounts} 个\n`);
     $.userList.push(...uniqueAccounts.map(o => new UserInfo(o)).filter(Boolean));
 }
