@@ -40,17 +40,21 @@ async function main() {
     for (let user of $.userList) {
         try {
             $.log(`[${user.userName || user.index}][INFO]当前签到模式:${$.is_default == 'false' ? '固定领取5个鸡腿' : '随机领取鸡腿'}\n`);
-            const signMsg = await user.signin($.is_default);
+            const signRes = await user.signin($.is_default);
             if (user.ckStatus) {
                 const userInfo = await user.userAccount();
                 const name = userInfo?.member_name || user.userName || '?';
                 const coin = userInfo?.coin ?? '?';
-                if (signMsg && signMsg.indexOf('已完成') >= 0) {
+                const signMsg = signRes?.message || '';
+                const gainedMatch = signMsg.match(/(\d+)\s*个鸡腿/);
+                const gained = gainedMatch ? gainedMatch[1] : '';
+                if (signMsg.indexOf('已完成') >= 0) {
                     skipCount++;
                     DoubleLog(`「${name}」已签 ${coin}🍗`);
                 } else {
                     okCount++;
-                    DoubleLog(`「${name}」✅${coin}🍗`);
+                    const gainText = gained ? ` +${gained}` : '';
+                    DoubleLog(`「${name}」✅${coin}🍗${gainText}`);
                 }
             } else {
                 errCount++;
@@ -149,8 +153,8 @@ class UserInfo {
                 type: 'post'
             };
             const res = await this.fetch({ ...opts, timeout: 30000 });
-            $.log(`[${this.userName || this.index}][INFO]${res?.message}\n`);
-            return res?.message;
+            $.log(`[${this.userName || this.index}][INFO]${JSON.stringify(res)}\n`);
+            return res;
         } catch (e) {
             this.ckStatus = false;
             $.log(`[${this.userName || this.index}][ERROR]签到:${e?.message || e}\n`);
@@ -202,15 +206,14 @@ async function checkEnv() {
     for (let i = accounts.length - 1; i >= 0; i--) {
         const o = accounts[i];
         const key = o.userName || o.userId || o.token || ('idx_' + i);
-        $.log(`[DEDUP] idx=${i} key="${key}" userName="${o.userName}" userId="${o.userId}"\n`);
-        if (!seen[key]) { seen[key] = 1; uniqueAccounts.unshift(o); } else { $.log(`[DEDUP] 跳过重复 key="${key}"\n`); }
+        if (!seen[key]) { seen[key] = 1; uniqueAccounts.unshift(o); }
     }
     // 清理存储中的重复数据
     if (uniqueAccounts.length < accounts.length) {
         $.log(`[INFO]发现 ${accounts.length - uniqueAccounts.length} 条重复账号，已自动清理\n`);
         $.setjson(uniqueAccounts.slice(0, maxAccounts), ckName);
     }
-    $.log(`\n[INFO]v2 检测到 ${userCookie?.length ?? 0} 个账号，去重后 ${uniqueAccounts.length} 个，上限 ${maxAccounts} 个\n`);
+    $.log(`\n[INFO]检测到 ${userCookie?.length ?? 0} 个账号，去重后 ${uniqueAccounts.length} 个，上限 ${maxAccounts} 个\n`);
     $.userList.push(...uniqueAccounts.map(o => new UserInfo(o)).filter(Boolean));
 }
 function debug(g, e = 'debug') { if ($.is_debug === 'true') { $.log(`\n-----------${e}------------\n`); $.log(typeof g === 'string' ? g : $.toStr(g) || `debug error => t=${g}`); $.log(`\n-----------${e}------------\n`); } }
