@@ -4,10 +4,10 @@
 @Author：基于 PingMe.js by 怎么肥事 改编
 
 [rewrite_local]
-^https:\/\/api\.wephoneapp\.co\/app\/queryBalanceAndBonus url script-request-header https://raw.githubusercontent.com/ZenmoFeiShi/Qx/refs/heads/main/WePhone.js
+^https:\/\/api\.wephoneapp\.co\/app\/queryBalanceAndBonus url script-request-header https://raw.githubusercontent.com/aray0007/surge/main/WePhone.js
 
 [task_local]
-30 8,20 * * * https://raw.githubusercontent.com/ZenmoFeiShi/Qx/refs/heads/main/WePhone.js, tag=WePhone签到, enabled=true
+30 8,20 * * * https://raw.githubusercontent.com/aray0007/surge/main/WePhone.js, tag=WePhone签到, enabled=true
 
 [MITM]
 hostname = api.wephoneapp.co
@@ -131,18 +131,30 @@ function fingerprintOf(params) {
   return (params.callpin || '') + '_' + (params.phone || '') + '_' + (params.uniquedeviceid || '');
 }
 
-// ==================== 存储 ====================
+// ==================== 存储（兼容 QX / Surge / Loon）====================
+function storeRead(key) {
+  try { if (typeof $persistentStore !== 'undefined') return $persistentStore.read(key); } catch(e) {}
+  try { if (typeof $prefs !== 'undefined') return $prefs.valueForKey(key); } catch(e) {}
+  try { if (typeof $store !== 'undefined' && $store.get) return $store.get(key); } catch(e) {}
+  return null;
+}
+function storeWrite(value, key) {
+  try { if (typeof $persistentStore !== 'undefined') { $persistentStore.write(value, key); return true; } } catch(e) {}
+  try { if (typeof $persistentStore !== 'undefined') { $persistentStore.write(key, value); return true; } } catch(e) {}
+  try { if (typeof $prefs !== 'undefined') { $prefs.setValueForKey(value, key); return true; } } catch(e) {}
+  try { if (typeof $store !== 'undefined' && $store.set) { $store.set(key, value); return true; } } catch(e) {}
+  return false;
+}
 function loadStore() {
   try {
-    const raw = $persistentStore.read(storeKey);
+    const raw = storeRead(storeKey);
     return raw ? JSON.parse(raw) : { version: 1, order: [], accounts: {} };
   } catch (e) {
     return { version: 1, order: [], accounts: {} };
   }
 }
-
 function saveStore(store) {
-  $persistentStore.write(JSON.stringify(store), storeKey);
+  storeWrite(JSON.stringify(store), storeKey);
 }
 
 // ==================== UA 生成 ====================
@@ -224,7 +236,9 @@ function buildHeaders(capture, ua) {
 }
 
 function notify(title, body) {
-  $notify(scriptName, title, body);
+  try { if (typeof $notify !== 'undefined') { $notify(scriptName, title, body); return; } } catch(e) {}
+  try { if (typeof $notification !== 'undefined') { $notification.post(scriptName, title, body); return; } } catch(e) {}
+  console.log(`[${scriptName}] ${title}\n${body}`);
 }
 
 function sleep(ms) {
@@ -241,14 +255,29 @@ function runAccount(acc, index, total) {
 
   function fetchApi(path, useFakeId) {
     const overrideId = useFakeId ? fakeDeviceId : null;
-    const attempt = (n) => $task.fetch({ url: buildUrl(path, acc.capture, overrideId), method: 'GET', headers })
-      .catch(err => {
+    const reqUrl = buildUrl(path, acc.capture, overrideId);
+    function attempt(n) {
+      let p;
+      if (typeof $task !== 'undefined' && $task.fetch) {
+        p = $task.fetch({ url: reqUrl, method: 'GET', headers });
+      } else if (typeof $httpClient !== 'undefined') {
+        p = new Promise((resolve, reject) => {
+          $httpClient.get({ url: reqUrl, headers: headers }, (err, resp, body) => {
+            if (err) reject({ error: String(err) });
+            else resolve({ body: body, status: resp.status || resp.statusCode });
+          });
+        });
+      } else {
+        return Promise.reject({ error: '无可用HTTP客户端' });
+      }
+      return p.catch(err => {
         const m = err && (err.error || String(err));
         if (n < 3 && /SSL|SSLSessionState|timeout|timed out|reset|connection|network|stream closed|closed|EOF/i.test(m || '')) {
           return sleep(1500).then(() => attempt(n + 1));
         }
         throw err;
       });
+    }
     return attempt(1);
   }
 
