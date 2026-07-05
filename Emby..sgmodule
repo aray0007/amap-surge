@@ -1,0 +1,65 @@
+#!name=Emby 专用分流模块 (固定策略版)
+#!desc=将所有 Emby 常用域名强制分流至指定的策略组（EMBY、DMIT、IEPL、DIRECT）。
+#!category=分流规则
+
+[Rule]
+# --- 1. 特定服务器节点分流 (优先匹配) ---
+# 走 DMIT CORONA
+DOMAIN,emby.younoyes.com,🇺🇸DMIT CORONA
+DOMAIN-SUFFIX,cf.sfcj.org,🇺🇸DMIT CORONA
+DOMAIN-SUFFIX,meidia.meby.pro,🇺🇸DMIT CORONA
+
+# --- 2. 特殊直连 ---
+DOMAIN-SUFFIX,139.com,DIRECT
+DOMAIN-SUFFIX,ccwu.cc,DIRECT
+DOMAIN-SUFFIX,cmecloud.cn,DIRECT
+DOMAIN-SUFFIX,l0323.top,DIRECT
+IP-CIDR,51.83.100.187/32,DIRECT,no-resolve
+
+# --- 3. 自定义 Emby 服务器域名 (走 EMBY 策略组) ---
+DOMAIN-SUFFIX,007.us.kg,EMBY
+DOMAIN-SUFFIX,cn2gias.uk,EMBY
+DOMAIN-SUFFIX,dpdns.org,EMBY
+DOMAIN-SUFFIX,emby.my,EMBY
+DOMAIN-SUFFIX,faemby.vip,EMBY
+DOMAIN-SUFFIX,feiniu.lol,EMBY
+DOMAIN-SUFFIX,gousen.cc.cd,EMBY
+DOMAIN-SUFFIX,heisi.org,EMBY
+DOMAIN-SUFFIX,kingemby.xyz,EMBY
+DOMAIN-SUFFIX,liminalnet.com,EMBY
+DOMAIN-SUFFIX,meowfly.de,EMBY
+DOMAIN-SUFFIX,miraiemby.com,EMBY
+DOMAIN-SUFFIX,notfounda.shop,EMBY
+DOMAIN-SUFFIX,okembg.org,EMBY
+DOMAIN-SUFFIX,shrekmedia.org,EMBY
+DOMAIN-SUFFIX,smlwmv.com,EMBY
+DOMAIN-SUFFIX,vban.xyz,EMBY
+DOMAIN-SUFFIX,wedg.top,EMBY
+DOMAIN-SUFFIX,wenjian.de,EMBY
+DOMAIN-SUFFIX,yusen.cyou,EMBY
+DOMAIN-SUFFIX,zhezhi.art,EMBY
+
+# --- 4. 通用元数据与字幕服务 ---
+DOMAIN-SUFFIX,allocine.fr,EMBY
+DOMAIN-SUFFIX,anilist.co,EMBY
+DOMAIN-SUFFIX,audiodb.com,EMBY
+DOMAIN-SUFFIX,douban.com,EMBY
+DOMAIN-SUFFIX,emby.com,EMBY
+DOMAIN-SUFFIX,emby.media,EMBY
+DOMAIN-SUFFIX,fanart.tv,EMBY
+DOMAIN-SUFFIX,imdb.com,EMBY
+DOMAIN-SUFFIX,jellyfin.org,EMBY
+DOMAIN-SUFFIX,kitsunekko.net,EMBY
+DOMAIN-SUFFIX,musicbrainz.org,EMBY
+DOMAIN-SUFFIX,omdbapi.com,EMBY
+DOMAIN-SUFFIX,opensubtitles.org,EMBY
+DOMAIN-SUFFIX,subscene.com,EMBY
+DOMAIN-SUFFIX,themoviedb.org,EMBY
+DOMAIN-SUFFIX,thetvdb.com,EMBY
+DOMAIN-SUFFIX,trakt.tv,EMBY
+DOMAIN-SUFFIX,tvmaze.com,EMBY
+DOMAIN-SUFFIX,zimuku.cn,EMBY
+
+# --- 5. 关键词匹配 (兜底匹配) ---
+# 匹配任意含有 "emby" 关键字的域名（已排除上方特殊指定的 younoyes.com）
+DOMAIN-KEYWORD,emby,EMBY
